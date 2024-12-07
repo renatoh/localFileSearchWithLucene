@@ -1,6 +1,7 @@
 package service
 
 import analyzer.FileNameAnlayzer
+import dto.Filetype
 import dto.FoundDocument
 import dto.SearchResult
 import org.apache.lucene.analysis.Analyzer
@@ -53,10 +54,10 @@ class SearchService(val pathsToIndex: List<String>, val excludePaths: List<Strin
         if (directory.exists() && directory.isDirectory) {
 
 
-            if (System.currentTimeMillis() % 1000 == 0L) {
-                println("indexed documents: ${writer.pendingNumDocs}")
-                println("current folder: ${directory.absolutePath}")
-            }
+//            if (System.currentTimeMillis() % 1000 == 0L) {
+//                println("indexed documents: ${writer.pendingNumDocs}")
+//                println("current folder: ${directory.absolutePath}")
+//            }
 
             val (directories, files) = (directory.listFiles() ?: emptyArray()).partition { it.isDirectory }
 
@@ -86,36 +87,27 @@ class SearchService(val pathsToIndex: List<String>, val excludePaths: List<Strin
 
     fun searchIndex(searchTerm: List<String>, numberOfDocs: Int = 10): SearchResult {
 
-        reader.use {
+        val boostedQuery1: Query = buildQuery(listOf("name", "path"), searchTerm, TermQuery(Term("type", "directory")), 1.0f)
+        val boostedQuery2: Query = buildQuery(listOf("name", "path"), searchTerm, TermQuery(Term("type", "file")), 1.0f)
+        val booleanQuery = BooleanQuery.Builder()
+            .add(boostedQuery1, BooleanClause.Occur.SHOULD) // SHOULD for optional match
+            .add(boostedQuery2, BooleanClause.Occur.SHOULD) // SHOULD for optional match
+            .build()
 
-            IndexSearcher(it)
+        val foundDocs = searcher?.search(booleanQuery, numberOfDocs) ?: return SearchResult(emptyList(), 0)
 
-            val boostedQuery1: Query = buildQuery(listOf("name", "path"), searchTerm, TermQuery(Term("type", "directory")), 1.0f)
-            val boostedQuery2: Query = buildQuery(listOf("name", "path"), searchTerm, TermQuery(Term("type", "file")), 1.1f)
-            val booleanQuery = BooleanQuery.Builder()
-                .add(boostedQuery1, BooleanClause.Occur.SHOULD) // SHOULD for optional match
-                .add(boostedQuery2, BooleanClause.Occur.SHOULD) // SHOULD for optional match
-                .build()
+        val searchResult = ArrayList<FoundDocument>()
+        if (searcher != null && searcher?.indexReader == null)
+            return SearchResult(emptyList(), 0)
 
-            val foundDocs = searcher?.search(booleanQuery, numberOfDocs)
+        val storedFields = searcher?.indexReader?.storedFields() ?: return SearchResult(emptyList(), 0)
 
-            if (foundDocs == null)
-                return SearchResult(emptyList(), 0)
-          
-
-            val searchResult = ArrayList<FoundDocument>()
-            if (searcher != null && searcher?.indexReader == null)
-                return SearchResult(emptyList(), 0)
-
-            val storedFields = searcher!!.indexReader.storedFields()
-
-            for (scoreDoc in foundDocs.scoreDocs) {
-                val docId = scoreDoc.doc
-                val doc: Document = storedFields.document(docId) // Retrieve stored fields
-                FoundDocument(doc.get("name") ?: "", doc.get("path") ?: "", scoreDoc.score).let { searchResult.add(it) }
-            }
-            return SearchResult(searchResult, foundDocs.totalHits.value)
+        for (scoreDoc in foundDocs.scoreDocs) {
+            val docId = scoreDoc.doc
+            val doc: Document = storedFields.document(docId) // Retrieve stored fields
+            FoundDocument(doc.get("name") ?: "", doc.get("path") ?: "", Filetype.valueOf(doc.get("type").uppercase()), scoreDoc.score).apply { searchResult.add(this) }
         }
+        return SearchResult(searchResult, foundDocs.totalHits.value)
     }
 
     private fun buildQuery(fieldNames: List<String>, searchTerms: List<String>, filterQuery: TermQuery, boost: Float = 1.0f): Query {
