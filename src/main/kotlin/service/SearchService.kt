@@ -46,14 +46,12 @@ class SearchService(val pathsToIndex: List<String>, val excludePaths: List<Strin
         reader = DirectoryReader.open(byteBufferDir)
 
         searcher = IndexSearcher(reader)
-
     }
 
     private fun indexFiles(directory: File, writer: IndexWriter, excludedPaths: List<String>) {
 
         if (directory.exists() && directory.isDirectory) {
-
-
+            
 //            if (System.currentTimeMillis() % 1000 == 0L) {
 //                println("indexed documents: ${writer.pendingNumDocs}")
 //                println("current folder: ${directory.absolutePath}")
@@ -123,13 +121,13 @@ class SearchService(val pathsToIndex: List<String>, val excludePaths: List<Strin
 
         val build: BooleanQuery = mainQuery.build()
 
-        val combinedQuery1 = mainQuery
+        val combinedQuery = mainQuery
             .add(build, BooleanClause.Occur.MUST) // Match the name
             .add(filterQuery, BooleanClause.Occur.FILTER) // Match the type
             .build()
 
-        val boostedQuery1: Query = BoostQuery(combinedQuery1, boost)
-        return boostedQuery1
+        val boostedQuery: Query = BoostQuery(combinedQuery, boost)
+        return boostedQuery
     }
 
 

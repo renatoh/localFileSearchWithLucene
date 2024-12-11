@@ -1,8 +1,11 @@
+import dto.Filetype
 import javafx.application.Application
+import javafx.application.Platform
 import javafx.scene.Scene
-import javafx.scene.control.ListView
+import javafx.scene.control.ContextMenu
+import javafx.scene.control.MenuItem
 import javafx.scene.control.TextField
-import javafx.scene.input.MouseEvent
+import javafx.scene.image.Image
 import javafx.scene.layout.VBox
 import javafx.stage.Stage
 import javafx.util.Duration
@@ -11,16 +14,17 @@ import java.awt.Desktop
 import java.io.File
 
 private const val namePathSeparator = "->"
-
 private const val rows = 25
 
 class SearchBoxApp : Application() {
     override fun start(primaryStage: Stage) {
-
-
         val debounceDelay: Long = 300 // 300 milliseconds
 
-        val pathsToIndex = listOf("/Users/renato/Documents")
+        val pathsToIndex = listOf(
+            "/Users/renato/",
+//            "/Applications"
+        
+        )
         val excludedPaths = listOf(
             "/Users/renato/Pictures",
             "/Users/renato/projects", "/Users/renato/music",
@@ -30,24 +34,15 @@ class SearchBoxApp : Application() {
         )
 
         val searchService = SearchService(pathsToIndex, excludedPaths)
-
         searchService.indexDirectories()
 
         val searchBox = TextField()
         searchBox.promptText = "Search here..." // Placeholder text
-        searchBox.style = "-fx-font-size: 18px; -fx-pref-width: 400px;"
-
-        val resultsListView = ListView<String>()
-        resultsListView.style = "-fx-font-size: 16px; -fx-text-fill: gray;"
-
-        // Add a listener for keystrokes (text property listener)
-        /*    searchBox.textProperty().addListener { _, _, newValue ->
-    
-                val searchResult = searchService.searchIndex(listOf(newValue), 10)
-    
-                outputLabel.text = searchResult.foundDocuments.map { it.fileName + "=>" + it.filePath }.joinToString("\n")
-    
-            }*/
+        searchBox.style = "-fx-font-size: 18px; -fx-pref-width: 800px;"
+        // ContextMenu for suggestions
+        val contextMenu = ContextMenu()
+        contextMenu.style = "-fx-font-size: 14px; -fx-pref-width: 800px"
+       
 
         // PauseTransition for debouncing
         val debounce = javafx.animation.PauseTransition(Duration.millis(debounceDelay.toDouble()))
@@ -56,91 +51,87 @@ class SearchBoxApp : Application() {
         searchBox.textProperty().addListener { _, _, newValue ->
             debounce.setOnFinished {
                 if (newValue.length < 3) {
+                    contextMenu.hide()
                     return@setOnFinished
                 }
+
                 val searchTerms = newValue.split(" ").toList()
                 val searchResult = searchService.searchIndex(searchTerms, rows)
-                val resultItems = searchResult.foundDocuments.map { "${it.fileType}: ${it.fileName} $namePathSeparator ${it.filePath}" }
-                resultsListView.items.setAll(resultItems)
 
-                searchResult.foundDocuments.forEach {
-                    println(
-                        "Document Name : " + it.fileName
-                                + " -$namePathSeparator" + it.filePath
-                                + "  :: Score : " + it.score
-                    )
+                contextMenu.items.clear()
+                searchResult.foundDocuments.forEach { result ->
+                    
+                    val menuItemContent =  "${result.fileName} $namePathSeparator ${result.filePath}"
+                    val menuItem = MenuItem(menuItemContent)
+                    
+                    if(result.fileType == Filetype.DIRECTORY)
+                            menuItem.style = "-fx-background-color: lightblue; -fx-padding: 5px;"
+                         
+                    menuItem.setOnAction {
+                        // Keep the ContextMenu open after interaction
+                        val fileOpened = openFile(menuItemContent)
+                        if (fileOpened) {
+                            Platform.runLater {
+                                val screenBounds = searchBox.localToScreen(searchBox.boundsInLocal)
+                                contextMenu.show(searchBox, screenBounds.minX, screenBounds.maxY)
+                            }
+                        }
+                    }
+                    contextMenu.items.add(menuItem)
+                }
+
+                if (searchResult.foundDocuments.isNotEmpty()) {
+                    val screenBounds = searchBox.localToScreen(searchBox.boundsInLocal)
+                    contextMenu.show(searchBox, screenBounds.minX, screenBounds.maxY)
+                } else {
+                    contextMenu.hide()
                 }
             }
             debounce.playFromStart()
         }
 
-        // Add a click listener to ListView items
-
-        searchBox.setOnKeyTyped { event ->
-            if (event.character == "\r")  {
-                resultsListView.requestFocus() // Move focus to the ListView
-                if (resultsListView.items.isNotEmpty()) {
-                    resultsListView.selectionModel.select(0) // Optionally select the first item
-                }
+        // Hide the ContextMenu if the user clicks outside the TextField
+        searchBox.focusedProperty().addListener { _, _, isFocused ->
+            if (!isFocused) {
+                contextMenu.hide()
             }
         }
-        
-        resultsListView.setOnMouseClicked { event ->
-            if (event.clickCount == 2)
-                openFile( resultsListView)
-        }
-
-        resultsListView.setOnKeyTyped { event ->
-            if (event.character == "\r")
-            {
-                openFile( resultsListView)
-            }
-            else
-            {
-                searchBox.requestFocus() 
-                searchBox.positionCaret(searchBox.text.length)
-            }
-        }
-
 
         // Layout and scene setup
-        val root = VBox(10.0, searchBox, resultsListView)
-        root.style = "-fx-padding: 20px; -fx-alignment: center;"
-
-        val scene = Scene(root, 1200.0, 400.0)
+        val root = VBox(10.0, searchBox)
+        root.style = "-fx-padding: 1px; -fx-alignment: center;"
+        
+        val scene = Scene(root, 800.0, 40.0)
         primaryStage.scene = scene
         primaryStage.title = "Search Box"
+//        primaryStage.initStyle(StageStyle.UNDECORATED)
+        val icon = Image(javaClass.getResourceAsStream("/spotlight-icon.png"))
+        primaryStage.icons.add(icon)
         primaryStage.show()
     }
 
-    private fun openFile(resultsListView: ListView<String>) {
-   
-
-        val selectedItem = resultsListView.selectionModel.selectedItem
-        if (selectedItem != null) {
-
-        // Extract the file path from the list item
+    private fun openFile(selectedItem: String): Boolean {
+        // Extract the file path from the menu item
         val filePath = selectedItem.split(namePathSeparator).last().trim()
-
         val file = File(filePath)
-        if (file.exists() && Desktop.isDesktopSupported()) {
+
+        return if (file.exists() && Desktop.isDesktopSupported()) {
             try {
                 Desktop.getDesktop().open(file) // Open the file with the associated application
+                true
             } catch (ex: Exception) {
                 println("Error opening file: ${ex.message}")
+                false
             }
         } else {
             println("File does not exist or desktop operations are not supported.")
+            false
         }
-        // Add your action here (e.g., open file, display details, etc.)
-    }
     }
 
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-
-
             val java = SearchBoxApp::class.java
             launch(java)
         }
