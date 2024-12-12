@@ -12,6 +12,8 @@ import javafx.util.Duration
 import service.SearchService
 import java.awt.Desktop
 import java.io.File
+import java.nio.file.Paths
+import javax.imageio.ImageIO
 
 private const val namePathSeparator = "->"
 private const val rows = 25
@@ -21,7 +23,7 @@ class SearchBoxApp : Application() {
         val debounceDelay: Long = 300 // 300 milliseconds
 
         val pathsToIndex = listOf(
-            "/Users/renato/",
+            "/Users/renato",
 //            "/Applications"
         
         )
@@ -105,7 +107,19 @@ class SearchBoxApp : Application() {
         primaryStage.scene = scene
         primaryStage.title = "Search Box"
 //        primaryStage.initStyle(StageStyle.UNDECORATED)
-        val icon = Image(javaClass.getResourceAsStream("/spotlight-icon.png"))
+        
+//        val icon = Image(javaClass.getResourceAsStream("/spotlight-icon.png"))
+//        stage.getIcons().add(new Image(<yourclassname>.class.getResourceAsStream("icon.png")));
+        
+//        primaryStage.getIcons().add(new Image(<yourclassname>.class.getResourceAsStream("icon.png")));
+//        val imagePath = Paths.get(javaClass.classLoader.getResource("spotlight-icon.png").toURI())
+//        val read = ImageIO.read(imagePath.toFile())
+
+//        val icon = Image(javaClass.getResourceAsStream("/spotlight-icon.png"))
+        val icon = Image(javaClass.classLoader.getResourceAsStream("spotlight-icon.png"))
+  
+          // Set the icon for the primary stage
+          primaryStage.icons.add(icon)
         primaryStage.icons.add(icon)
         primaryStage.show()
     }

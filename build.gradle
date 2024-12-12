@@ -1,0 +1,99 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version '2.0.20'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.11'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
+group = 'org.example'
+version = '0.1'
+
+def kotlinJvmTarget = '1.8'
+
+repositories {
+    mavenCentral()
+}
+
+javafx {
+    version = "23.0.1" // Use the version you're working with
+//    modules = [ 'javafx.controls', 'javafx.graphics' ]
+    modules = ["javafx.controls", "javafx.base", "javafx.graphics"]
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceSets {
+        main {
+            kotlin {
+                srcDirs = ['src/main/kotlin']
+            }
+        }
+        test {
+            kotlin {
+                srcDirs = ['src/test/kotlin']
+            }
+        }
+    }
+}
+
+application {
+    mainClass = 'Main.kt'
+}
+
+dependencies {
+//    implementation 'group:library:version-arm64'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.0.20"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit5:2.0.20"
+//    testImplementation "org.junit.jupiter:junit-jupiter:5.10.0"
+
+    implementation "org.apache.lucene:lucene-queryparser:9.12.0"
+    implementation "org.apache.lucene:lucene-core:9.12.0"
+    implementation "org.apache.lucene:lucene-analyzers-common:8.11.4"
+
+    implementation 'org.openjfx:javafx-controls:23.0.1'
+    implementation 'org.openjfx:javafx-graphics:23.0.1'
+}
+//    implementation 'org.openjfx:javafx-controls:23.0.1:arm64'
+//    implementation 'org.openjfx:javafx-graphics:23.0.1:arm64'
+//}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = kotlinJvmTarget
+    }
+}
+
+shadowJar {
+    // Include resources from the main source set
+     from(sourceSets.main.resources) {
+         into("META-INF")
+     }
+    
+    manifest {
+   /*     attributes(
+                "Image-Icon": file("spotlight-icon.png").absolutePath 
+        )*/
+    }
+    archiveClassifier.set('')
+    mergeServiceFiles()
+}
+    
+application {
+    mainClass = 'Main'
+}
+
+/*
+tasks.test {
+    useJUnitPlatform()
+}
+*/
+
+/*
+tasks.register('runJavaFx', JavaExec) {
+    group = 'application'
+    description = 'Runs the JavaFX application'
+    mainClass.set('YourMainClass')
+    classpath = sourceSets.main.runtimeClasspath
+}
+*/

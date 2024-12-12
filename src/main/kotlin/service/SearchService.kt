@@ -1,6 +1,6 @@
 package service
 
-import analyzer.FileNameAnlayzer
+import analyzer.FileNameAnalyzer
 import dto.Filetype
 import dto.FoundDocument
 import dto.SearchResult
@@ -18,7 +18,7 @@ import kotlin.time.measureTime
 class SearchService(val pathsToIndex: List<String>, val excludePaths: List<String>) {
 
     val byteBufferDir = ByteBuffersDirectory()
-    val analyzer: Analyzer = FileNameAnlayzer()
+    val analyzer: Analyzer = FileNameAnalyzer()
     var reader: IndexReader? = null
     var searcher: IndexSearcher? = null
 
@@ -35,7 +35,6 @@ class SearchService(val pathsToIndex: List<String>, val excludePaths: List<Strin
                 pathsToIndex.forEach { path ->
                     val directory = File(path)
                     indexFiles(directory, localWriter, excludePaths)
-
                 }
             }
 
